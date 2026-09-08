@@ -23,6 +23,7 @@ parameters:
         # appelées sous garde class_exists() / function_exists() à l'exécution.
         - stubs/advanced-shipment-tracking.php
         - stubs/boxtal.php
+        - stubs/paypal-payments.php
         # Action Scheduler est embarqué par WooCommerce, mais absent de ses stubs.
         - stubs/action-scheduler.php
         # Permet à PHPStan de résoudre la fabrique du vérificateur de mises à jour.

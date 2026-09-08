@@ -118,6 +118,7 @@ final class Plugin {
 			'east_module_classes',
 			array(
 				\EAST\Modules\BoxtalTracking::class,
+				\EAST\Modules\PayPalTracking::class,
 			)
 		);
 	}

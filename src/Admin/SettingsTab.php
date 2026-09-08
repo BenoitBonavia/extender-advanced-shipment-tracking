@@ -13,8 +13,11 @@ use EAST\BoxtalTracking\Config as BoxtalConfig;
 use EAST\BoxtalTracking\SnippetGuard as BoxtalSnippetGuard;
 use EAST\Integration\AdvancedShipmentTracking;
 use EAST\Integration\Boxtal;
+use EAST\Integration\PayPalPayments;
 use EAST\Modules\BoxtalTracking as BoxtalTrackingModule;
 use EAST\Modules\ModuleInterface;
+use EAST\PayPalTracking\Config as PayPalConfig;
+use EAST\PayPalTracking\SnippetGuard as PayPalSnippetGuard;
 use EAST\Plugin;
 use EAST\Support\JobState;
 use EAST\Support\Settings;
@@ -73,6 +76,7 @@ final class SettingsTab extends \WC_Settings_Page {
 		return array(
 			''        => __( 'Général', 'extender-advanced-shipment-tracking' ),
 			'boxtal'  => __( 'Boxtal → AST', 'extender-advanced-shipment-tracking' ),
+			'paypal'  => __( 'AST → PayPal', 'extender-advanced-shipment-tracking' ),
 			'modules' => __( 'Modules', 'extender-advanced-shipment-tracking' ),
 		);
 	}
@@ -341,6 +345,185 @@ final class SettingsTab extends \WC_Settings_Page {
 				'id'   => Settings::PREFIX . 'boxtal_diagnostics',
 			),
 		);
+	}
+
+	/**
+	 * Champs de la section « AST → PayPal ».
+	 *
+	 * @return array
+	 */
+	protected function get_settings_for_paypal_section(): array {
+		$overrides = PayPalConfig::constant_overrides();
+
+		$status_options = array_combine( PayPalConfig::VALID_STATUSES, PayPalConfig::VALID_STATUSES );
+
+		return array(
+			array(
+				'title' => __( 'Suivi AST → PayPal', 'extender-advanced-shipment-tracking' ),
+				'type'  => 'title',
+				'desc'  => $this->paypal_intro_html(),
+				'id'    => Settings::PREFIX . 'paypal_options',
+			),
+			array(
+				'title'    => __( 'Envoi automatique', 'extender-advanced-shipment-tracking' ),
+				'desc'     => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_ENABLED,
+					__( 'Transmettre automatiquement à PayPal tout nouveau numéro de suivi ajouté dans AST.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'       => Settings::PREFIX . PayPalConfig::KEY_ENABLED,
+				'type'     => 'checkbox',
+				'default'  => 'yes',
+				'desc_tip' => false,
+			),
+			array(
+				'title'             => __( 'Délai avant traitement (secondes)', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_DELAY,
+					__( 'Laisse le temps à tous les colis d’une même expédition d’être ajoutés dans AST avant qu’un seul passage ne les traite tous.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . PayPalConfig::KEY_DELAY,
+				'type'              => 'number',
+				'default'           => PayPalConfig::DEFAULT_DELAY,
+				'custom_attributes' => array(
+					'min'  => '0',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'title'    => __( 'Statut transmis à PayPal', 'extender-advanced-shipment-tracking' ),
+				'desc'     => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_STATUS,
+					__( 'Statut de suivi envoyé avec chaque colis.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'       => Settings::PREFIX . PayPalConfig::KEY_STATUS,
+				'type'     => 'select',
+				'class'    => 'wc-enhanced-select',
+				'options'  => $status_options,
+				'default'  => PayPalConfig::DEFAULT_STATUS,
+				'desc_tip' => false,
+			),
+			array(
+				'title'             => __( 'Fenêtre du rattrapage (jours)', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_BACKFILL_DAYS,
+					__( 'Ancienneté maximale des commandes analysées par l’écran de rattrapage.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . PayPalConfig::KEY_BACKFILL_DAYS,
+				'type'              => 'number',
+				'default'           => PayPalConfig::DEFAULT_BACKFILL_DAYS,
+				'custom_attributes' => array(
+					'min'  => '0',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'title'             => __( 'Plafond de commandes analysées', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_BACKFILL_MAX,
+					__( 'Nombre maximal de commandes examinées par l’écran de rattrapage.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . PayPalConfig::KEY_BACKFILL_MAX,
+				'type'              => 'number',
+				'default'           => PayPalConfig::DEFAULT_BACKFILL_MAX,
+				'custom_attributes' => array(
+					'min'  => '1',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'title'             => __( 'Espacement entre envois groupés (secondes)', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_SPACING,
+					__( 'Évite de saturer l’API PayPal lors d’un rattrapage groupé.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . PayPalConfig::KEY_SPACING,
+				'type'              => 'number',
+				'default'           => PayPalConfig::DEFAULT_SPACING,
+				'custom_attributes' => array(
+					'min'  => '1',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'title'    => __( 'Journal détaillé', 'extender-advanced-shipment-tracking' ),
+				'desc'     => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_DEBUG,
+					__( 'Consigner la charge utile envoyée à PayPal. À activer pour diagnostiquer, avec la journalisation générale de l’onglet Général.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'       => Settings::PREFIX . PayPalConfig::KEY_DEBUG,
+				'type'     => 'checkbox',
+				'default'  => 'no',
+				'desc_tip' => false,
+			),
+			array(
+				'title'             => __( 'Durée du cache de l’analyse (secondes)', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					PayPalConfig::KEY_SCAN_TTL,
+					__( 'Durée de conservation du résultat de l’analyse affichée sur l’écran de rattrapage.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . PayPalConfig::KEY_SCAN_TTL,
+				'type'              => 'number',
+				'default'           => PayPalConfig::DEFAULT_SCAN_TTL,
+				'custom_attributes' => array(
+					'min'  => '0',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'type' => 'sectionend',
+				'id'   => Settings::PREFIX . 'paypal_options',
+			),
+		);
+	}
+
+	/**
+	 * Introduction de la section PayPal : état du snippet et lien vers l'écran
+	 * de rattrapage.
+	 *
+	 * Pas de bloc Diagnostic complet ici, contrairement à la section Boxtal :
+	 * le détail commande par commande vit dans l'écran dédié
+	 * `Admin\PayPalTrackingPage`, pas dans cet onglet de réglages.
+	 *
+	 * @return string
+	 */
+	private function paypal_intro_html(): string {
+		$lines = array();
+
+		if ( PayPalSnippetGuard::snippet_is_active() ) {
+			$lines[] = '<strong style="color:#b32d2e">'
+				. esc_html__( 'Snippet détecté : le module est en veille. Désactivez le snippet pour que le plugin prenne le relais.', 'extender-advanced-shipment-tracking' )
+				. '</strong> ' . $this->function_list( PayPalSnippetGuard::detected_functions() );
+		} else {
+			$lines[] = '<span style="color:#00a32a">'
+				. esc_html__( 'Aucun snippet concurrent détecté.', 'extender-advanced-shipment-tracking' )
+				. '</span>';
+		}
+
+		$lines[] = sprintf(
+			/* translators: 1: oui/non, 2: lien vers l'écran de rattrapage. */
+			esc_html__( '%1$s : actif : %2$s', 'extender-advanced-shipment-tracking' ),
+			esc_html( PayPalPayments::name() ),
+			$this->yes_no( PayPalPayments::is_active() )
+		);
+
+		$lines[] = '<a href="' . esc_url( admin_url( 'admin.php?page=' . PayPalTrackingPage::SLUG ) ) . '">'
+			. esc_html__( 'Ouvrir l’écran de rattrapage', 'extender-advanced-shipment-tracking' )
+			. '</a>';
+
+		return implode( '<br>', $lines );
 	}
 
 	/**

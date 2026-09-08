@@ -4,7 +4,7 @@ Tags: woocommerce, expedition, suivi de colis, advanced shipment tracking
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,9 +19,9 @@ Chaque règle devient un « module » autonome, activable individuellement depui
 WooCommerce → Réglages → Suivi d'expédition → Modules.
 
 Le plugin dépend de WooCommerce et de Advanced Shipment Tracking for WooCommerce, sans lesquels il ne
-s'active pas. Certains modules peuvent en outre dépendre de l'extension Boxtal Connect : celle-ci reste
-optionnelle pour le plugin dans son ensemble — seuls les modules qui la déclarent restent inactivables
-tant qu'elle n'est pas installée.
+s'active pas. Certains modules peuvent en outre dépendre de Boxtal Connect ou de WooCommerce PayPal
+Payments : ces deux extensions restent optionnelles pour le plugin dans son ensemble — seuls les
+modules qui les déclarent restent inactivables tant qu'elles ne sont pas installées.
 
 Le plugin déclare sa compatibilité avec le stockage haute performance des commandes (HPOS)
 et avec les blocs Panier et Commande.
@@ -55,6 +55,22 @@ La vérification automatique a lieu au plus toutes les 12 heures.
 
 == Changelog ==
 
+= 0.4.0 =
+* Nouveau module « Suivi AST → PayPal » : transmet automatiquement à PayPal, via l'API interne de
+  WooCommerce PayPal Payments (aucun jeton à gérer), tout numéro de suivi présent dans Advanced
+  Shipment Tracking — quelle qu'en soit l'origine (pont Boxtal, saisie manuelle, action groupée, API
+  REST). PayPal Payments synchronise en général les extensions de suivi les plus courantes, mais pas
+  Advanced Shipment Tracking : ce module comble ce manque.
+* Transporteur résolu vers le code attendu par PayPal (Colissimo, Chronopost, Mondial Relay, Colis
+  Privé, DPD, GLS, DHL, UPS, FedEx, Geodis, Cubyn, TNT…) ; un transporteur non reconnu part avec son nom
+  lisible plutôt que d'être bloqué.
+* Écran dédié WooCommerce → PayPal : suivi — compteurs, rattrapage groupé étalé dans le temps, envoi
+  commande par commande, sans jamais retransmettre un numéro déjà connu de PayPal.
+* Reprend le relais du snippet WPCode équivalent sans coupure : le module reste en veille tant que le
+  snippet est détecté actif.
+* Nouvel onglet de réglages « AST → PayPal » : envoi automatique, délai, statut transmis, fenêtre et
+  plafond du rattrapage, espacement des envois groupés, journal détaillé.
+
 = 0.3.0 =
 * Action groupée « Boxtal → AST : importer le suivi » sur la liste des commandes (écran historique et
   écran HPOS) : importe le suivi des commandes sélectionnées à la demande, jusqu'à 20 par lot (réglable).
@@ -87,6 +103,11 @@ La vérification automatique a lieu au plus toutes les 12 heures.
 * Mises à jour automatiques depuis GitHub.
 
 == Upgrade Notice ==
+
+= 0.4.0 =
+Nouveau module de suivi AST → PayPal. Nécessite WooCommerce PayPal Payments pour s'activer ; sans lui,
+le reste du plugin continue de fonctionner normalement. Si le snippet WPCode équivalent est encore
+actif, désactivez-le après cette mise à jour.
 
 = 0.3.0 =
 Un rattrapage automatique démarre après cette mise à jour : il importe le suivi des commandes récentes

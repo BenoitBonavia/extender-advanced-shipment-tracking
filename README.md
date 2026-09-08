@@ -3,10 +3,11 @@
 Plugin maison regroupant les règles et automatismes autour du **suivi d'expédition** d'une boutique
 WooCommerce, à la place de snippets dispersés dans `functions.php` ou Code Snippets.
 
-- **Version** : 0.3.0
+- **Version** : 0.4.0
 - **Prérequis** : WordPress 6.8+, PHP 7.4+, WooCommerce 9.9+ (testé jusqu'à 11.0), Advanced Shipment
   Tracking for WooCommerce 4.0+ (testé jusqu'à 4.0.2)
-- **Optionnel** : Boxtal Connect 2.0+, requis uniquement par certains modules
+- **Optionnel** : Boxtal Connect 2.0+ et WooCommerce PayPal Payments 4.1+, chacun requis uniquement par
+  son module
 - **Préfixe** : `east_` (options, hooks) / `EAST\` (namespace PHP)
 - **Text domain** : `extender-advanced-shipment-tracking` (doit rester identique au slug du dossier)
 
@@ -39,15 +40,18 @@ extender-advanced-shipment-tracking/
     ├── Integration/
     │   ├── HostPlugin.php                   Contrat commun à une extension tierce dont on dépend
     │   ├── AdvancedShipmentTracking.php     Point d'isolement de l'hôte principal (dépendance DURE)
-    │   └── Boxtal.php                       Point d'isolement de Boxtal Connect (dépendance DOUCE, par module)
+    │   ├── Boxtal.php                       Point d'isolement de Boxtal Connect (dépendance DOUCE, par module)
+    │   └── PayPalPayments.php               Point d'isolement de PayPal Payments (dépendance DOUCE, par module)
     ├── Admin/
     │   ├── Admin.php                        Hooks admin, assets, lien « Réglages »
-    │   └── SettingsTab.php                  WooCommerce → Réglages → Suivi d'expédition
+    │   ├── SettingsTab.php                  WooCommerce → Réglages → Suivi d'expédition
+    │   └── PayPalTrackingPage.php           Écran dédié WooCommerce → PayPal : suivi (rattrapage AST → PayPal)
     ├── Modules/
     │   ├── ModuleInterface.php              Contrat d'un module, dépendances comprises
     │   ├── AbstractModule.php               Base : activation pilotée par option + résolution des dépendances
-    │   └── BoxtalTracking.php               Module : suivi Boxtal → AST (accroche les hooks, délègue à BoxtalTracking/)
-    ├── BoxtalTracking/                      Logique du module ci-dessus
+    │   ├── BoxtalTracking.php               Module : suivi Boxtal → AST (accroche les hooks, délègue à BoxtalTracking/)
+    │   └── PayPalTracking.php               Module : suivi AST → PayPal (accroche les hooks, délègue à PayPalTracking/)
+    ├── BoxtalTracking/                      Logique du module Boxtal → AST
     │   ├── Config.php                       Réglages : constante héritée MH_BXT_* → option east_boxtal_* → défaut
     │   ├── Legacy.php                       Méta et sentinelles héritées du snippet WPCode remplacé
     │   ├── SnippetGuard.php                 Détection du snippet encore actif : met le module en veille
@@ -57,6 +61,15 @@ extender-advanced-shipment-tracking/
     │   ├── OrderAction.php                  Action manuelle « importer le suivi » sur une commande
     │   ├── BulkAction.php                   Action groupée « importer le suivi » sur la liste des commandes
     │   └── Backfill.php                     Rattrapage par lots de l'historique (BatchJob)
+    ├── PayPalTracking/                      Logique du module AST → PayPal
+    │   ├── Config.php                       Réglages : constante héritée MH_PPT_* → option east_paypal_* → défaut
+    │   ├── Legacy.php                       Méta et sentinelles héritées du snippet WPCode remplacé
+    │   ├── SnippetGuard.php                 Détection du snippet encore actif : met le module en veille
+    │   ├── CarrierMap.php                   Correspondance transporteur AST → code transporteur PayPal
+    │   ├── OrderState.php                   Éligibilité d'une commande (passerelle ppcp, capture, suivi en attente)
+    │   ├── Push.php                         Envoi vers PayPal (déclenché par update_order_status_after_adding_tracking)
+    │   ├── Scan.php                         Analyse + cache (transient) pour l'écran de rattrapage
+    │   └── OrderAction.php                  Action manuelle « envoyer le suivi » sur une commande
     └── Support/
         ├── Settings.php                     Lecture/écriture des options east_*
         ├── Logger.php                       Journaux WooCommerce (source extender-ast)
@@ -139,7 +152,9 @@ valeur enregistrée — voir `Plugin::register_modules()` et `AbstractModule::is
 | `east_activated` / `east_deactivated` | actions | Activation / désactivation. |
 | `east_batch_job_done` | action | Un `Support\BatchJob` vient de se terminer (`$job_id`, `JobState $state`). |
 | `east_boxtal_carriers` | filtre | Table des transporteurs reconnus par le pont Boxtal → AST. |
-| `east_boxtal_backfill_statuses` | filtre | Statuts de commande candidats au rattrapage automatique. |
+| `east_boxtal_backfill_statuses` | filtre | Statuts de commande candidats au rattrapage Boxtal → AST. |
+| `east_paypal_carrier_map` | filtre | Table de correspondance transporteur AST → code PayPal. |
+| `east_paypal_backfill_excluded_statuses` | filtre | Statuts de commande exclus du rattrapage AST → PayPal. |
 
 ## Développement
 
@@ -168,6 +183,7 @@ module venait à manipuler directement les tables de commandes historiques.
 | WooCommerce | dure | — (API native) | `Requirements::are_met()` |
 | Advanced Shipment Tracking for WooCommerce | dure | `Integration\AdvancedShipmentTracking` | `Requirements::are_met()` |
 | Boxtal Connect | douce, par module | `Integration\Boxtal` | `AbstractModule::is_available()` |
+| WooCommerce PayPal Payments | douce, par module | `Integration\PayPalPayments` | `AbstractModule::is_available()` |
 
 Une dépendance dure bloque l'activation du plugin (en-tête `Requires Plugins` + `Requirements`, qui reste
 le filet pour les cas que l'en-tête ne couvre pas : dossier renommé, version trop ancienne, extension

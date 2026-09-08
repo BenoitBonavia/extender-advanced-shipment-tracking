@@ -3,7 +3,7 @@
  * Plugin Name:          Extender for Advanced Shipment Tracking
  * Plugin URI:           https://github.com/benoitbonavia/extender-advanced-shipment-tracking
  * Description:          Étend « Advanced Shipment Tracking for WooCommerce » : règles et automatismes supplémentaires regroupés dans une extension unique plutôt que dans des snippets épars.
- * Version:              0.3.0
+ * Version:              0.4.0
  * Requires at least:    6.8
  * Requires PHP:         7.4
  * Requires Plugins:     woocommerce, woo-advanced-shipment-tracking
@@ -24,7 +24,7 @@ namespace EAST;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'EAST_VERSION', '0.3.0' );
+define( 'EAST_VERSION', '0.4.0' );
 define( 'EAST_FILE', __FILE__ );
 define( 'EAST_PATH', plugin_dir_path( __FILE__ ) );
 define( 'EAST_URL', plugin_dir_url( __FILE__ ) );
