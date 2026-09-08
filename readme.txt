@@ -1,0 +1,68 @@
+=== Extender for Advanced Shipment Tracking ===
+Contributors: benoitbonavia
+Tags: woocommerce, expedition, suivi de colis, advanced shipment tracking
+Requires at least: 6.8
+Tested up to: 7.1
+Requires PHP: 7.4
+Stable tag: 0.1.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+Étend Advanced Shipment Tracking for WooCommerce : règles et automatismes regroupés dans une extension unique.
+
+== Description ==
+
+Extender for Advanced Shipment Tracking remplace les snippets épars gravitant autour du suivi
+d'expédition par une extension structurée.
+
+Chaque règle devient un « module » autonome, activable individuellement depuis
+WooCommerce → Réglages → Suivi d'expédition → Modules.
+
+Le plugin dépend de WooCommerce et de Advanced Shipment Tracking for WooCommerce, sans lesquels il ne
+s'active pas. Certains modules peuvent en outre dépendre de l'extension Boxtal Connect : celle-ci reste
+optionnelle pour le plugin dans son ensemble — seuls les modules qui la déclarent restent inactivables
+tant qu'elle n'est pas installée.
+
+Le plugin déclare sa compatibilité avec le stockage haute performance des commandes (HPOS)
+et avec les blocs Panier et Commande.
+
+Les mises à jour sont distribuées depuis le dépôt GitHub du projet et apparaissent
+directement dans l'écran Extensions de WordPress.
+
+== Installation ==
+
+1. Téléverser l'archive depuis Extensions → Ajouter → Téléverser une extension.
+2. Activer l'extension. WooCommerce 9.9+ et Advanced Shipment Tracking for WooCommerce doivent être actifs.
+3. Configurer depuis WooCommerce → Réglages → Suivi d'expédition.
+
+== Frequently Asked Questions ==
+
+= Le plugin nécessite-t-il Boxtal Connect ? =
+
+Non. Boxtal Connect n'est requis que par certains modules. Le plugin s'installe et s'active sans lui ;
+seuls les modules qui en dépendent restent grisés dans l'onglet Modules tant qu'il n'est pas actif.
+
+= Le plugin nécessite-t-il un jeton GitHub ? =
+
+Non. Le dépôt est public : les mises à jour fonctionnent sans configuration.
+Définir la constante `EAST_GITHUB_TOKEN` dans wp-config.php reste possible pour relever
+la limite de l'API GitHub (60 requêtes par heure et par adresse IP sans jeton).
+
+= Comment forcer une vérification des mises à jour ? =
+
+Depuis l'écran Extensions, le lien « Check for updates » sous la ligne du plugin.
+La vérification automatique a lieu au plus toutes les 12 heures.
+
+== Changelog ==
+
+= 0.1.0 =
+* Version initiale : structure du plugin, registre de modules avec dépendances tierces déclarables
+  (dures : WooCommerce, Advanced Shipment Tracking ; optionnelle par module : Boxtal Connect),
+  onglet de réglages WooCommerce.
+* Déclaration de compatibilité HPOS et blocs Panier/Commande.
+* Mises à jour automatiques depuis GitHub.
+
+== Upgrade Notice ==
+
+= 0.1.0 =
+Première version.

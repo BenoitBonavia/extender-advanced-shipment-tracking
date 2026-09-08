@@ -1,0 +1,34 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 6
+    paths:
+        - extender-advanced-shipment-tracking.php
+        - uninstall.php
+        - src
+    excludePaths:
+        # Bibliothèque tierce embarquée telle quelle.
+        - lib/*
+    bootstrapFiles:
+        - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+    scanFiles:
+        - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+        # Constantes du plugin dont PHPStan ne peut pas évaluer la valeur dans le
+        # fichier principal (elles viennent d'appels de fonction WordPress). Ce
+        # fichier ne peut pas être « analysé » ET « scanné » : d'où un stub à part.
+        - stubs/plugin-constants.php
+        # Advanced Shipment Tracking et Boxtal sont des extensions tierces,
+        # absentes des stubs WooCommerce. Toutes leurs classes/fonctions sont
+        # appelées sous garde class_exists() / function_exists() à l'exécution.
+        - stubs/advanced-shipment-tracking.php
+        - stubs/boxtal.php
+        # Permet à PHPStan de résoudre la fabrique du vérificateur de mises à jour.
+        - lib/plugin-update-checker/Puc/v5/PucFactory.php
+        - lib/plugin-update-checker/Puc/v5p7/PucFactory.php
+    scanDirectories:
+        # La bibliothèque de mise à jour est exclue de l'ANALYSE (excludePaths),
+        # mais ses classes doivent rester résolvables : buildUpdateChecker()
+        # renvoie une union de trois types de vérificateurs.
+        - lib/plugin-update-checker/Puc
+    treatPhpDocTypesAsCertain: false
