@@ -80,6 +80,30 @@ final class TrackingSync {
 			return;
 		}
 
+		$result = self::import( $order, $tracking );
+
+		if ( 0 === $result['found'] ) {
+			self::schedule_retry( $order_id, $attempt, 'expédition présente mais aucun colis avec référence' );
+		}
+	}
+
+	/**
+	 * Importe dans AST le suivi déjà récupéré auprès de Boxtal pour une commande.
+	 *
+	 * Partagée entre le déclencheur temps réel (`sync()`) et le rattrapage par
+	 * lots (`Backfill::process()`) : même parcours
+	 * `shipmentsTracking[] → parcelsTracking[]`, même dédoublonnage par numéro,
+	 * même résolution de transporteur. Ne programme jamais de relance — c'est à
+	 * l'appelant de décider si un résultat vide justifie une nouvelle tentative.
+	 *
+	 * @param \WC_Order $order    Commande.
+	 * @param mixed     $tracking Réponse déjà validée (objet portant `shipmentsTracking`).
+	 *
+	 * @return array{found:int, added:int}
+	 */
+	public static function import( \WC_Order $order, $tracking ): array {
+		$order_id = $order->get_id();
+
 		// Numéros déjà enregistrés dans AST (anti-doublon : AST n'en fait aucun).
 		$known = array();
 
@@ -95,7 +119,7 @@ final class TrackingSync {
 		$found = 0;
 		$added = 0;
 
-		foreach ( $tracking->shipmentsTracking as $shipment ) {
+		foreach ( (array) $tracking->shipmentsTracking as $shipment ) {
 			if ( ! is_object( $shipment ) || empty( $shipment->parcelsTracking ) ) {
 				continue;
 			}
@@ -162,12 +186,6 @@ final class TrackingSync {
 			}
 		}
 
-		if ( 0 === $found ) {
-			self::schedule_retry( $order_id, $attempt, 'expédition présente mais aucun colis avec référence' );
-
-			return;
-		}
-
 		if ( $added > 0 ) {
 			// Relecture : AST vient d'écrire ses propres métas sur la commande.
 			$fresh = wc_get_order( $order_id );
@@ -189,6 +207,11 @@ final class TrackingSync {
 				$fresh->save();
 			}
 		}
+
+		return array(
+			'found' => $found,
+			'added' => $added,
+		);
 	}
 
 	/**

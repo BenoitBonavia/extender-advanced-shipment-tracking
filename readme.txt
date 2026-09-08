@@ -4,7 +4,7 @@ Tags: woocommerce, expedition, suivi de colis, advanced shipment tracking
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,16 @@ La vérification automatique a lieu au plus toutes les 12 heures.
 
 == Changelog ==
 
+= 0.3.0 =
+* Action groupée « Boxtal → AST : importer le suivi » sur la liste des commandes (écran historique et
+  écran HPOS) : importe le suivi des commandes sélectionnées à la demande, jusqu'à 20 par lot (réglable).
+* Rattrapage automatique à l'installation : balaie les commandes des 180 derniers jours (réglable) et
+  importe le suivi de celles qui n'en ont encore aucun. Ne touche jamais à une commande qui a déjà au
+  moins une entrée de suivi, quelle qu'en soit l'origine. Se relance manuellement depuis Réglages →
+  Suivi d'expédition → Boxtal → AST, sans risque : un balayage déjà à jour ne modifie rien.
+* Le rattrapage tourne en arrière-plan par lots (Action Scheduler), avec reprise automatique en cas
+  d'interruption.
+
 = 0.2.0 =
 * Nouveau module « Suivi Boxtal → Advanced Shipment Tracking » : dès qu'un bordereau est édité côté
   Boxtal (Colissimo, Chronopost, Mondial Relay, ou tout autre transporteur), le numéro et le lien de
@@ -77,6 +87,11 @@ La vérification automatique a lieu au plus toutes les 12 heures.
 * Mises à jour automatiques depuis GitHub.
 
 == Upgrade Notice ==
+
+= 0.3.0 =
+Un rattrapage automatique démarre après cette mise à jour : il importe le suivi des commandes récentes
+qui n'en ont encore aucun. Aucune commande déjà pourvue de suivi n'est modifiée. Suivi et relance depuis
+Réglages → Suivi d'expédition → Boxtal → AST.
 
 = 0.2.0 =
 Nouveau module de suivi Boxtal → AST. Si le snippet WPCode équivalent est encore actif, désactivez-le

@@ -3,7 +3,7 @@
 Plugin maison regroupant les règles et automatismes autour du **suivi d'expédition** d'une boutique
 WooCommerce, à la place de snippets dispersés dans `functions.php` ou Code Snippets.
 
-- **Version** : 0.1.0
+- **Version** : 0.3.0
 - **Prérequis** : WordPress 6.8+, PHP 7.4+, WooCommerce 9.9+ (testé jusqu'à 11.0), Advanced Shipment
   Tracking for WooCommerce 4.0+ (testé jusqu'à 4.0.2)
 - **Optionnel** : Boxtal Connect 2.0+, requis uniquement par certains modules
@@ -45,11 +45,37 @@ extender-advanced-shipment-tracking/
     │   └── SettingsTab.php                  WooCommerce → Réglages → Suivi d'expédition
     ├── Modules/
     │   ├── ModuleInterface.php              Contrat d'un module, dépendances comprises
-    │   └── AbstractModule.php               Base : activation pilotée par option + résolution des dépendances
+    │   ├── AbstractModule.php               Base : activation pilotée par option + résolution des dépendances
+    │   └── BoxtalTracking.php               Module : suivi Boxtal → AST (accroche les hooks, délègue à BoxtalTracking/)
+    ├── BoxtalTracking/                      Logique du module ci-dessus
+    │   ├── Config.php                       Réglages : constante héritée MH_BXT_* → option east_boxtal_* → défaut
+    │   ├── Legacy.php                       Méta et sentinelles héritées du snippet WPCode remplacé
+    │   ├── SnippetGuard.php                 Détection du snippet encore actif : met le module en veille
+    │   ├── CarrierResolver.php              Résolution du transporteur AST (4 signaux, du plus au moins fiable)
+    │   ├── TrackingSync.php                 Import temps réel + relances (déclenché par boxtal_connect_order_shipped)
+    │   ├── TrackingLink.php                 Filtre ast_tracking_link : priorité au lien Boxtal
+    │   ├── OrderAction.php                  Action manuelle « importer le suivi » sur une commande
+    │   ├── BulkAction.php                   Action groupée « importer le suivi » sur la liste des commandes
+    │   └── Backfill.php                     Rattrapage par lots de l'historique (BatchJob)
     └── Support/
         ├── Settings.php                     Lecture/écriture des options east_*
-        └── Logger.php                       Journaux WooCommerce (source extender-ast)
+        ├── Logger.php                       Journaux WooCommerce (source extender-ast)
+        ├── BatchJob.php                     Contrat d'un traitement par lots
+        ├── BatchRunner.php                  Exécute un BatchJob par étapes auto-chaînées (Action Scheduler)
+        ├── JobState.php                     État persistant d'un traitement par lots (option east_job_{id})
+        ├── Lock.php                         Verrou d'exclusion mutuelle (INSERT IGNORE)
+        └── Scheduler.php                    Unique point de contact avec Action Scheduler, repli WP-Cron
 ```
+
+## Traitements en arrière-plan (`Support\BatchJob` / `BatchRunner`)
+
+Tout travail trop long pour une requête HTTP (appel API par élément, gros volume) implémente
+`Support\BatchJob` (`get_id()`, `get_hook()`, `get_batch_size()`, `process( $cursor, $limit )`) et se
+fait exécuter par `new Support\BatchRunner( $job )`. Le runner découpe en étapes auto-chaînées via
+Action Scheduler (budget 15 s par étape, verrou `Support\Lock`, état persistant `Support\JobState`,
+reprise automatique si le processus est tué en cours de route). `BoxtalTracking\Backfill` en est
+l'implémentation de référence. Point d'entrée à câbler dans le module : `east_upgrade` pour amorcer au
+bon moment, `admin_init` pour relancer un travail figé (voir `Modules\BoxtalTracking::revive_backfill()`).
 
 ## Convertir un snippet en module
 
@@ -111,6 +137,9 @@ valeur enregistrée — voir `Plugin::register_modules()` et `AbstractModule::is
 | `east_setting` | filtre | Filtrer la valeur d'un réglage. |
 | `east_upgrade` | action | Migrations de données à l'activation après changement de version. |
 | `east_activated` / `east_deactivated` | actions | Activation / désactivation. |
+| `east_batch_job_done` | action | Un `Support\BatchJob` vient de se terminer (`$job_id`, `JobState $state`). |
+| `east_boxtal_carriers` | filtre | Table des transporteurs reconnus par le pont Boxtal → AST. |
+| `east_boxtal_backfill_statuses` | filtre | Statuts de commande candidats au rattrapage automatique. |
 
 ## Développement
 

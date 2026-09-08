@@ -28,12 +28,19 @@ final class Config {
 	public const KEY_DEBUG             = 'boxtal_debug';
 	public const KEY_MAX_RETRY         = 'boxtal_max_retry';
 	public const KEY_RETRY_DELAY       = 'boxtal_retry_delay';
+	public const KEY_BULK_MAX          = 'boxtal_bulk_max';
+	public const KEY_BACKFILL_DAYS     = 'boxtal_backfill_days';
 
-	public const DEFAULT_MAX_RETRY   = 6;
-	public const DEFAULT_RETRY_DELAY = 900;
+	public const DEFAULT_MAX_RETRY     = 6;
+	public const DEFAULT_RETRY_DELAY   = 900;
+	public const DEFAULT_BULK_MAX      = 20;
+	public const DEFAULT_BACKFILL_DAYS = 180;
 
 	/**
 	 * Correspondance clé de réglage → constante héritée du snippet WPCode.
+	 *
+	 * `KEY_BACKFILL_DAYS` n'a volontairement pas d'entrée : c'est un réglage
+	 * nouveau, sans équivalent dans les snippets remplacés.
 	 *
 	 * @var array<string, string>
 	 */
@@ -44,6 +51,7 @@ final class Config {
 		self::KEY_DEBUG             => 'MH_BXT_DEBUG',
 		self::KEY_MAX_RETRY         => 'MH_BXT_MAX_RETRY',
 		self::KEY_RETRY_DELAY       => 'MH_BXT_RETRY_DELAY',
+		self::KEY_BULK_MAX          => 'MH_BXT_BULK_MAX',
 	);
 
 	/**
@@ -119,6 +127,26 @@ final class Config {
 	}
 
 	/**
+	 * Plafond de commandes traitées par l'action groupée de la liste des
+	 * commandes. Chaque commande y coûte un appel HTTP bloquant vers Boxtal.
+	 *
+	 * @return int
+	 */
+	public static function bulk_max(): int {
+		return self::resolve_int( self::KEY_BULK_MAX, self::DEFAULT_BULK_MAX );
+	}
+
+	/**
+	 * Ancienneté maximale (en jours) des commandes candidates au rattrapage
+	 * automatique. `0` désactive la limite.
+	 *
+	 * @return int
+	 */
+	public static function backfill_days(): int {
+		return self::resolve_int( self::KEY_BACKFILL_DAYS, self::DEFAULT_BACKFILL_DAYS );
+	}
+
+	/**
 	 * Résout un réglage booléen.
 	 *
 	 * @param string $key     Clé de réglage.
@@ -127,9 +155,9 @@ final class Config {
 	 * @return bool
 	 */
 	private static function resolve_bool( string $key, bool $default ): bool {
-		$constant = self::CONSTANT_MAP[ $key ];
+		$constant = self::CONSTANT_MAP[ $key ] ?? '';
 
-		if ( defined( $constant ) ) {
+		if ( '' !== $constant && defined( $constant ) ) {
 			return (bool) constant( $constant );
 		}
 
@@ -145,9 +173,9 @@ final class Config {
 	 * @return int
 	 */
 	private static function resolve_int( string $key, int $default ): int {
-		$constant = self::CONSTANT_MAP[ $key ];
+		$constant = self::CONSTANT_MAP[ $key ] ?? '';
 
-		if ( defined( $constant ) ) {
+		if ( '' !== $constant && defined( $constant ) ) {
 			return (int) constant( $constant );
 		}
 

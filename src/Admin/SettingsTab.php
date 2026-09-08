@@ -7,13 +7,16 @@
 
 namespace EAST\Admin;
 
+use EAST\BoxtalTracking\Backfill;
 use EAST\BoxtalTracking\CarrierResolver;
 use EAST\BoxtalTracking\Config as BoxtalConfig;
 use EAST\BoxtalTracking\SnippetGuard as BoxtalSnippetGuard;
 use EAST\Integration\AdvancedShipmentTracking;
 use EAST\Integration\Boxtal;
+use EAST\Modules\BoxtalTracking as BoxtalTrackingModule;
 use EAST\Modules\ModuleInterface;
 use EAST\Plugin;
+use EAST\Support\JobState;
 use EAST\Support\Settings;
 
 defined( 'ABSPATH' ) || exit;
@@ -292,6 +295,38 @@ final class SettingsTab extends \WC_Settings_Page {
 				'desc_tip'          => false,
 			),
 			array(
+				'title'             => __( 'Plafond de l’action groupée', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_BULK_MAX,
+					__( 'Nombre maximal de commandes traitées en une fois depuis la liste des commandes. Chaque commande y coûte un appel bloquant à l’API Boxtal.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . BoxtalConfig::KEY_BULK_MAX,
+				'type'              => 'number',
+				'default'           => BoxtalConfig::DEFAULT_BULK_MAX,
+				'custom_attributes' => array(
+					'min'  => '1',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'title'             => __( 'Fenêtre du rattrapage (jours)', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_BACKFILL_DAYS,
+					__( 'Ancienneté maximale des commandes balayées par le rattrapage automatique. 0 = aucune limite.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . BoxtalConfig::KEY_BACKFILL_DAYS,
+				'type'              => 'number',
+				'default'           => BoxtalConfig::DEFAULT_BACKFILL_DAYS,
+				'custom_attributes' => array(
+					'min'  => '0',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
 				'type' => 'sectionend',
 				'id'   => Settings::PREFIX . 'boxtal_options',
 			),
@@ -375,7 +410,66 @@ final class SettingsTab extends \WC_Settings_Page {
 			'<code>' . esc_html( implode( ', ', $carriers ) ) . '</code>'
 		);
 
+		$lines[] = $this->backfill_status_html();
+
 		return implode( '<br>', $lines );
+	}
+
+	/**
+	 * État du rattrapage automatique et bouton de relance manuelle.
+	 *
+	 * Pas de page dédiée façon rattrapage Brevo : importer un suivi manquant
+	 * n'est jamais destructeur, une simple ligne dans ce diagnostic suffit.
+	 *
+	 * @return string
+	 */
+	private function backfill_status_html(): string {
+		$state = JobState::load( Backfill::JOB_ID );
+
+		switch ( $state->status() ) {
+			case JobState::STATUS_RUNNING:
+				$status = sprintf(
+					/* translators: 1: nombre de commandes examinées, 2: nombre de suivis ajoutés. */
+					esc_html__( 'en cours — %1$s commande(s) examinée(s), %2$s suivi(s) ajouté(s)', 'extender-advanced-shipment-tracking' ),
+					'<strong>' . esc_html( number_format_i18n( $state->processed() ) ) . '</strong>',
+					'<strong>' . esc_html( number_format_i18n( $state->affected() ) ) . '</strong>'
+				);
+				break;
+
+			case JobState::STATUS_DONE:
+				$status = sprintf(
+					/* translators: 1: nombre de commandes examinées, 2: nombre de suivis ajoutés. */
+					esc_html__( 'terminé — %1$s commande(s) examinée(s), %2$s suivi(s) ajouté(s)', 'extender-advanced-shipment-tracking' ),
+					'<strong>' . esc_html( number_format_i18n( $state->processed() ) ) . '</strong>',
+					'<strong>' . esc_html( number_format_i18n( $state->affected() ) ) . '</strong>'
+				);
+				break;
+
+			case JobState::STATUS_FAILED:
+				$status = '<span style="color:#b32d2e">' . sprintf(
+					/* translators: %s: message d'erreur. */
+					esc_html__( 'interrompu — %s', 'extender-advanced-shipment-tracking' ),
+					esc_html( (string) $state->get( 'last_error', '' ) )
+				) . '</span>';
+				break;
+
+			default:
+				$status = esc_html__( 'jamais lancé', 'extender-advanced-shipment-tracking' );
+		}
+
+		$button = sprintf(
+			'<form method="post" action="%1$s" style="display:inline;margin-left:8px;">%2$s<input type="hidden" name="action" value="%3$s"><button type="submit" class="button">%4$s</button></form>',
+			esc_url( admin_url( 'admin-post.php' ) ),
+			wp_nonce_field( BoxtalTrackingModule::RESTART_ACTION, '_wpnonce', true, false ),
+			esc_attr( BoxtalTrackingModule::RESTART_ACTION ),
+			esc_html__( 'Relancer le rattrapage', 'extender-advanced-shipment-tracking' )
+		);
+
+		return sprintf(
+			/* translators: %s: état courant du rattrapage. */
+			esc_html__( 'Rattrapage automatique : %s.', 'extender-advanced-shipment-tracking' ),
+			$status
+		) . $button;
 	}
 
 	/**
