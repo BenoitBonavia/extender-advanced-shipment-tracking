@@ -114,7 +114,12 @@ final class Plugin {
 		 *
 		 * @param string[] $classes Noms de classes implémentant ModuleInterface.
 		 */
-		return (array) apply_filters( 'east_module_classes', array() );
+		return (array) apply_filters(
+			'east_module_classes',
+			array(
+				\EAST\Modules\BoxtalTracking::class,
+			)
+		);
 	}
 
 	/**

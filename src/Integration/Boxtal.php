@@ -114,4 +114,93 @@ final class Boxtal implements HostPlugin {
 			? self_admin_url( 'plugins.php' )
 			: self_admin_url( 'plugin-install.php?tab=search&type=term&s=' . rawurlencode( self::slug() ) );
 	}
+
+	/**
+	 * Action déclenchée quand Boxtal marque une commande comme expédiée.
+	 *
+	 * Émise par `Util\Order_Util::set_order_as_shipped()`, avec l'identifiant de
+	 * commande en unique argument. C'est le seul point d'entrée temps réel du
+	 * pont de suivi — confirmé par lecture de `class-order-util.php` (2.0.2).
+	 */
+	public const ACTION_ORDER_SHIPPED = 'boxtal_connect_order_shipped';
+
+	/**
+	 * Nom pleinement qualifié de l'utilitaire d'appel à l'API Boxtal.
+	 */
+	private const SHIPPING_API_UTIL_CLASS = 'Boxtal\\BoxtalConnectWoocommerce\\Util\\Shipping_Api_Util';
+
+	/**
+	 * Nom pleinement qualifié de l'utilitaire de lecture des commandes Boxtal.
+	 */
+	private const ORDER_UTIL_CLASS = 'Boxtal\\BoxtalConnectWoocommerce\\Util\\Order_Util';
+
+	/**
+	 * Suivi d'une commande tel que renvoyé par l'API Boxtal.
+	 *
+	 * Appelle `GET https://api.boxtal.com/v2/shop-order/{$order_id}` (relevé sur
+	 * `Util\Shipping_Api_Util::get_order()`, 2.0.2). La forme de la réponse est
+	 * un objet portant `shipmentsTracking[]`, chaque expédition portant
+	 * `parcelsTracking[]`, chaque colis portant `reference` (numéro de suivi) et
+	 * `trackingUrl` — à lire tel quel, aucune normalisation n'est faite ici.
+	 *
+	 * @param int $order_id Commande.
+	 *
+	 * @return mixed Objet décodé depuis la réponse JSON, ou null si indisponible.
+	 */
+	public static function get_order_tracking( int $order_id ) {
+		if ( ! self::is_active() || ! class_exists( self::SHIPPING_API_UTIL_CLASS ) ) {
+			return null;
+		}
+
+		return call_user_func( array( self::SHIPPING_API_UTIL_CLASS, 'get_order' ), $order_id );
+	}
+
+	/**
+	 * Point relais choisi pour une commande, s'il y en a un.
+	 *
+	 * Relevé sur `Util\Order_Util::get_parcelpoint()`, 2.0.2 : renvoie un objet
+	 * portant (entre autres) la propriété `network`, ou `null` en livraison
+	 * standard.
+	 *
+	 * @param \WC_Order $order Commande.
+	 *
+	 * @return mixed
+	 */
+	public static function get_parcelpoint( \WC_Order $order ) {
+		if ( ! self::is_active() || ! class_exists( self::ORDER_UTIL_CLASS ) ) {
+			return null;
+		}
+
+		return call_user_func( array( self::ORDER_UTIL_CLASS, 'get_parcelpoint' ), $order );
+	}
+
+	/**
+	 * Mise en correspondance réseau de points relais → transporteurs.
+	 *
+	 * Boxtal stocke cette table dans l'option `BW_PP_NETWORKS`, tantôt en objet
+	 * tantôt en tableau selon la version ayant écrit l'option : normalisée ici
+	 * en tableau `réseau => transporteurs[]`, pour que le reste du plugin n'ait
+	 * jamais à se soucier de cette variation de forme.
+	 *
+	 * @return array<string, string[]>
+	 */
+	public static function get_parcelpoint_networks(): array {
+		$networks = get_option( 'BW_PP_NETWORKS' );
+
+		if ( is_object( $networks ) ) {
+			$networks = get_object_vars( $networks );
+		}
+
+		if ( ! is_array( $networks ) ) {
+			return array();
+		}
+
+		$normalized = array();
+
+		foreach ( $networks as $network => $carriers ) {
+			$normalized[ (string) $network ] = array_map( 'strval', (array) $carriers );
+		}
+
+		return $normalized;
+	}
 }

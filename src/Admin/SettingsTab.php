@@ -7,6 +7,9 @@
 
 namespace EAST\Admin;
 
+use EAST\BoxtalTracking\CarrierResolver;
+use EAST\BoxtalTracking\Config as BoxtalConfig;
+use EAST\BoxtalTracking\SnippetGuard as BoxtalSnippetGuard;
 use EAST\Integration\AdvancedShipmentTracking;
 use EAST\Integration\Boxtal;
 use EAST\Modules\ModuleInterface;
@@ -66,6 +69,7 @@ final class SettingsTab extends \WC_Settings_Page {
 	protected function get_own_sections(): array {
 		return array(
 			''        => __( 'Général', 'extender-advanced-shipment-tracking' ),
+			'boxtal'  => __( 'Boxtal → AST', 'extender-advanced-shipment-tracking' ),
 			'modules' => __( 'Modules', 'extender-advanced-shipment-tracking' ),
 		);
 	}
@@ -190,6 +194,214 @@ final class SettingsTab extends \WC_Settings_Page {
 		);
 
 		return implode( '<br>', $lines );
+	}
+
+	/**
+	 * Champs de la section « Boxtal → AST ».
+	 *
+	 * @return array
+	 */
+	protected function get_settings_for_boxtal_section(): array {
+		$overrides = BoxtalConfig::constant_overrides();
+
+		return array(
+			array(
+				'title' => __( 'Suivi Boxtal → Advanced Shipment Tracking', 'extender-advanced-shipment-tracking' ),
+				'type'  => 'title',
+				'desc'  => __( 'Réglages du pont qui importe automatiquement dans AST le numéro et le lien de suivi générés par Boxtal à l’édition d’un bordereau.', 'extender-advanced-shipment-tracking' ),
+				'id'    => Settings::PREFIX . 'boxtal_options',
+			),
+			array(
+				'title'    => __( 'Préférer le lien Boxtal', 'extender-advanced-shipment-tracking' ),
+				'desc'     => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_PREFER_LINK,
+					__( 'Utiliser en priorité l’URL de suivi renvoyée par Boxtal plutôt que celle construite par AST. Recommandé : elle reste valide pour Mondial Relay, dont la page de suivi exige numéro et code postal.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'       => Settings::PREFIX . BoxtalConfig::KEY_PREFER_LINK,
+				'type'     => 'checkbox',
+				'default'  => 'yes',
+				'desc_tip' => false,
+			),
+			array(
+				'title'    => __( 'Statut « expédié » automatique', 'extender-advanced-shipment-tracking' ),
+				'desc'     => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_STATUS_SHIPPED,
+					__( 'Faire passer la commande au statut « expédié » d’AST à l’ajout du suivi. Décoché par défaut : Boxtal change généralement le statut de la commande juste après.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'       => Settings::PREFIX . BoxtalConfig::KEY_STATUS_SHIPPED,
+				'type'     => 'checkbox',
+				'default'  => 'no',
+				'desc_tip' => false,
+			),
+			array(
+				'title'    => __( 'Déduire du format du numéro', 'extender-advanced-shipment-tracking' ),
+				'desc'     => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_GUESS_FROM_NUMBER,
+					__( 'En dernier recours, déduire Mondial Relay d’un numéro purement numérique. Faible confiance : Colissimo et Chronopost partagent le même format et ne sont jamais déduits de cette façon.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'       => Settings::PREFIX . BoxtalConfig::KEY_GUESS_FROM_NUMBER,
+				'type'     => 'checkbox',
+				'default'  => 'yes',
+				'desc_tip' => false,
+			),
+			array(
+				'title'    => __( 'Journal détaillé', 'extender-advanced-shipment-tracking' ),
+				'desc'     => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_DEBUG,
+					__( 'Consigner la réponse brute de l’API Boxtal. À activer pour diagnostiquer, avec la journalisation générale de l’onglet Général.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'       => Settings::PREFIX . BoxtalConfig::KEY_DEBUG,
+				'type'     => 'checkbox',
+				'default'  => 'no',
+				'desc_tip' => false,
+			),
+			array(
+				'title'             => __( 'Tentatives maximum', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_MAX_RETRY,
+					__( 'Nombre de relances si l’API Boxtal n’a pas encore le colis au moment de l’édition du bordereau.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . BoxtalConfig::KEY_MAX_RETRY,
+				'type'              => 'number',
+				'default'           => BoxtalConfig::DEFAULT_MAX_RETRY,
+				'custom_attributes' => array(
+					'min'  => '0',
+					'step' => '1',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'title'             => __( 'Délai entre tentatives (secondes)', 'extender-advanced-shipment-tracking' ),
+				'desc'              => $this->override_note(
+					$overrides,
+					BoxtalConfig::KEY_RETRY_DELAY,
+					__( 'Délai entre deux relances.', 'extender-advanced-shipment-tracking' )
+				),
+				'id'                => Settings::PREFIX . BoxtalConfig::KEY_RETRY_DELAY,
+				'type'              => 'number',
+				'default'           => BoxtalConfig::DEFAULT_RETRY_DELAY,
+				'custom_attributes' => array(
+					'min'  => '60',
+					'step' => '60',
+				),
+				'desc_tip'          => false,
+			),
+			array(
+				'type' => 'sectionend',
+				'id'   => Settings::PREFIX . 'boxtal_options',
+			),
+			array(
+				'title' => __( 'Diagnostic', 'extender-advanced-shipment-tracking' ),
+				'type'  => 'title',
+				'desc'  => $this->boxtal_diagnostics_html(),
+				'id'    => Settings::PREFIX . 'boxtal_diagnostics',
+			),
+			array(
+				'type' => 'sectionend',
+				'id'   => Settings::PREFIX . 'boxtal_diagnostics',
+			),
+		);
+	}
+
+	/**
+	 * Complète la description d'un champ imposé par une constante héritée du
+	 * snippet WPCode.
+	 *
+	 * Le champ reste modifiable : le désactiver ferait enregistrer une valeur
+	 * vide par WooCommerce, et la configuration serait perdue le jour où la
+	 * constante disparaîtrait.
+	 *
+	 * @param array  $overrides   Réglages imposés par une constante.
+	 * @param string $key         Clé du réglage.
+	 * @param string $description Description de base.
+	 *
+	 * @return string
+	 */
+	private function override_note( array $overrides, string $key, string $description ): string {
+		if ( ! isset( $overrides[ $key ] ) ) {
+			return $description;
+		}
+
+		return $description . '<br><strong>' . esc_html(
+			sprintf(
+				/* translators: %s: nom de la constante PHP. */
+				__( 'Actuellement imposé par la constante %s : ce réglage est ignoré tant qu’elle est définie.', 'extender-advanced-shipment-tracking' ),
+				$overrides[ $key ]
+			)
+		) . '</strong>';
+	}
+
+	/**
+	 * Tableau de diagnostic du pont Boxtal → AST.
+	 *
+	 * @return string
+	 */
+	private function boxtal_diagnostics_html(): string {
+		$lines = array();
+
+		if ( BoxtalSnippetGuard::snippet_is_active() ) {
+			$lines[] = '<strong style="color:#b32d2e">'
+				. esc_html__( 'Snippet détecté : le module est en veille. Désactivez le snippet pour que le plugin prenne le relais.', 'extender-advanced-shipment-tracking' )
+				. '</strong> ' . $this->function_list( BoxtalSnippetGuard::detected_functions() );
+		} else {
+			$lines[] = '<span style="color:#00a32a">'
+				. esc_html__( 'Aucun snippet concurrent détecté.', 'extender-advanced-shipment-tracking' )
+				. '</span>';
+		}
+
+		$networks = Boxtal::is_active() ? Boxtal::get_parcelpoint_networks() : array();
+
+		$lines[] = sprintf(
+			/* translators: %s: nombre de réseaux de points relais reconnus par Boxtal. */
+			esc_html__( 'Réseaux de points relais résolus par Boxtal (BW_PP_NETWORKS) : %s', 'extender-advanced-shipment-tracking' ),
+			'<strong>' . esc_html( (string) count( $networks ) ) . '</strong>'
+		);
+
+		$carriers = array_map(
+			static function ( array $carrier ) {
+				return $carrier['ast'];
+			},
+			CarrierResolver::carriers()
+		);
+
+		$lines[] = sprintf(
+			/* translators: %s: liste des transporteurs reconnus. */
+			esc_html__( 'Transporteurs reconnus : %s', 'extender-advanced-shipment-tracking' ),
+			'<code>' . esc_html( implode( ', ', $carriers ) ) . '</code>'
+		);
+
+		return implode( '<br>', $lines );
+	}
+
+	/**
+	 * Rend la liste des fonctions qui mettent le module en veille.
+	 *
+	 * @param string[] $functions Fonctions détectées.
+	 *
+	 * @return string
+	 */
+	private function function_list( array $functions ): string {
+		if ( empty( $functions ) ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: %s: liste des noms de fonctions détectées. */
+			esc_html(
+				_n(
+					'Fonction détectée : %s.',
+					'Fonctions détectées : %s.',
+					count( $functions ),
+					'extender-advanced-shipment-tracking'
+				)
+			),
+			'<code>' . implode( '</code>, <code>', array_map( 'esc_html', $functions ) ) . '</code>'
+		);
 	}
 
 	/**

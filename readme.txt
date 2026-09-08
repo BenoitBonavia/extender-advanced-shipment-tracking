@@ -4,7 +4,7 @@ Tags: woocommerce, expedition, suivi de colis, advanced shipment tracking
 Requires at least: 6.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,20 @@ La vérification automatique a lieu au plus toutes les 12 heures.
 
 == Changelog ==
 
+= 0.2.0 =
+* Nouveau module « Suivi Boxtal → Advanced Shipment Tracking » : dès qu'un bordereau est édité côté
+  Boxtal (Colissimo, Chronopost, Mondial Relay, ou tout autre transporteur), le numéro et le lien de
+  suivi sont importés automatiquement dans Advanced Shipment Tracking, sans action manuelle.
+* Transporteur résolu par cascade (point relais Boxtal, URL de suivi, méthode de livraison, format du
+  numéro) ; en dernier recours, le lien fourni par Boxtal est posé tel quel, sans transporteur reconnu.
+* Jusqu'à 6 relances automatiques (toutes les 15 minutes par défaut) si l'API Boxtal n'a pas encore le
+  colis au moment de l'édition du bordereau, plus une action manuelle « Boxtal → AST : importer le suivi »
+  sur la fiche commande.
+* Reprend le relais du snippet WPCode équivalent sans coupure : le module reste en veille tant que le
+  snippet est détecté actif, avec un avertissement dans les réglages.
+* Nouvel onglet de réglages « Boxtal → AST » : préférence du lien de suivi, statut « expédié »
+  automatique, déduction par format de numéro, journal détaillé, tentatives et délai de relance.
+
 = 0.1.0 =
 * Version initiale : structure du plugin, registre de modules avec dépendances tierces déclarables
   (dures : WooCommerce, Advanced Shipment Tracking ; optionnelle par module : Boxtal Connect),
@@ -63,6 +77,11 @@ La vérification automatique a lieu au plus toutes les 12 heures.
 * Mises à jour automatiques depuis GitHub.
 
 == Upgrade Notice ==
+
+= 0.2.0 =
+Nouveau module de suivi Boxtal → AST. Si le snippet WPCode équivalent est encore actif, désactivez-le
+après cette mise à jour pour que le module prenne le relais — un avertissement vous le rappelle dans
+Réglages → Suivi d'expédition → Boxtal → AST.
 
 = 0.1.0 =
 Première version.

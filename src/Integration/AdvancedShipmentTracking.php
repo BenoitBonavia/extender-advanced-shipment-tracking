@@ -151,4 +151,65 @@ final class AdvancedShipmentTracking implements HostPlugin {
 			? self_admin_url( 'plugins.php' )
 			: self_admin_url( 'plugin-install.php?tab=search&type=term&s=' . rawurlencode( self::slug() ) );
 	}
+
+	/**
+	 * Nom pleinement qualifié de la classe qui expose l'API de suivi (ajout,
+	 * lecture) de l'extension hôte.
+	 *
+	 * Distincte de `Zorem_Woocommerce_Advanced_Shipment_Tracking` : c'est la
+	 * classe consommée par les intégrations tierces, relevée dans
+	 * `includes/class-wc-advanced-shipment-tracking.php`.
+	 */
+	private const ACTIONS_CLASS = 'WC_Advanced_Shipment_Tracking_Actions';
+
+	/**
+	 * Instance du singleton d'actions de suivi, ou null si indisponible.
+	 *
+	 * @return object|null
+	 */
+	private static function actions() {
+		if ( ! self::is_active() || ! class_exists( self::ACTIONS_CLASS ) ) {
+			return null;
+		}
+
+		return call_user_func( array( self::ACTIONS_CLASS, 'get_instance' ) );
+	}
+
+	/**
+	 * Ajoute une entrée de suivi à une commande.
+	 *
+	 * Les clés acceptées par `$args` (`tracking_provider`, `custom_tracking_provider`,
+	 * `custom_tracking_link`, `tracking_number`, `date_shipped`, `status_shipped`,
+	 * `source`…) sont celles de l'extension hôte, relevées sur la version 4.0.2 —
+	 * aucune n'est réinterprétée ici.
+	 *
+	 * @param int   $order_id Commande.
+	 * @param array $args     Arguments transmis tels quels à l'extension hôte.
+	 */
+	public static function add_tracking_item( int $order_id, array $args ): void {
+		$actions = self::actions();
+
+		if ( null === $actions ) {
+			return;
+		}
+
+		$actions->add_tracking_item( $order_id, $args );
+	}
+
+	/**
+	 * Retourne les entrées de suivi déjà enregistrées pour une commande.
+	 *
+	 * @param int $order_id Commande.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function get_tracking_items( int $order_id ): array {
+		$actions = self::actions();
+
+		if ( null === $actions ) {
+			return array();
+		}
+
+		return (array) $actions->get_tracking_items( $order_id );
+	}
 }

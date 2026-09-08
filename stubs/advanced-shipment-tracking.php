@@ -41,3 +41,36 @@ class Zorem_Woocommerce_Advanced_Shipment_Tracking {
 function wc_advanced_shipment_tracking() {
 	return new Zorem_Woocommerce_Advanced_Shipment_Tracking();
 }
+
+/**
+ * API de suivi consommée par les intégrations tierces (relevée dans
+ * `includes/class-wc-advanced-shipment-tracking.php`, 4.0.2) — distincte de
+ * la classe de bootstrap ci-dessus.
+ */
+class WC_Advanced_Shipment_Tracking_Actions {
+
+	/**
+	 * @return WC_Advanced_Shipment_Tracking_Actions
+	 */
+	public static function get_instance() {
+		return new self();
+	}
+
+	/**
+	 * @param int   $order_id Commande.
+	 * @param array $args     Arguments de l'entrée de suivi.
+	 *
+	 * @return void
+	 */
+	public function add_tracking_item( $order_id, $args ) {}
+
+	/**
+	 * @param int  $order_id  Commande.
+	 * @param bool $formatted Formater ou non les entrées renvoyées.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_tracking_items( $order_id, $formatted = false ) {
+		return array();
+	}
+}
